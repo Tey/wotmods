@@ -133,10 +133,10 @@
       res/packages/gui/sound_notification.xml
       and more.
       Example:
-      * "Dlink" : /GUI/notifications_FX/gun_intuition
-      * "Clock" : /GUI/notifications_FX/cybersport_timer  
+      * "Dlink" : gun_intuition
+      * "Dong" : task_new
       -->
-  <AudioPath>/GUI/notifications_FX/cybersport_timer</AudioPath>
+  <AudioPath>task_new</AudioPath>
   <!-- ***************************************************** -->
   
   

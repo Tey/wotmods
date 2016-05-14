@@ -1,4 +1,3 @@
-import FMOD
 import SoundGroups
 import BigWorld
 import ResMgr
@@ -92,6 +91,15 @@ class SixthSenseDuration(Plugin):
         i -= 1
         BigWorld.callback(SixthSenseDuration.myConf['AudioTick']/1000, partial(SixthSenseDuration.playExtSound,i))
     
+    @staticmethod
+    def new_playSound2D(self, event):
+        #LOG_DEBUG("playSound2D(%s)" % event)
+        if event == 'observed_by_enemy' or event == 'xvm_sixthSense':
+          LOG_NOTE("playSound2D: %s => BLOCKED" % (event))
+          return
+
+        old_playSound2D(self, event)
+
     @staticmethod
     def new_showSixthSenseIndicator(self, isShow):
         if  SixthSenseDuration.myConf['DisplayOriginalIcon'] or not isShow:
@@ -287,15 +295,18 @@ class SixthSenseDuration(Plugin):
         injectNewFuncs()
         
 def saveOldFuncs():
-    global old_showSixthSenseIndicatorFromSixthSenseDuration,old_changeDoneFromSixthSenseDuration
+    global old_showSixthSenseIndicatorFromSixthSenseDuration,old_changeDoneFromSixthSenseDuration,old_playSound2D
     DecorateUtils.ensureGlobalVarNotExist('old_showSixthSenseIndicatorFromSixthSenseDuration')
     DecorateUtils.ensureGlobalVarNotExist('old_changeDoneFromSixthSenseDuration')
+    DecorateUtils.ensureGlobalVarNotExist('old_playSound2D')
     old_showSixthSenseIndicatorFromSixthSenseDuration = Battle._showSixthSenseIndicator
     old_changeDoneFromSixthSenseDuration = _HangarSpace._HangarSpace__changeDone
+    old_playSound2D = SoundGroups.SoundGroups.playSound2D
     
 def injectNewFuncs():
     Battle._showSixthSenseIndicator = SixthSenseDuration.new_showSixthSenseIndicator
     _HangarSpace._HangarSpace__changeDone = SixthSenseDuration.new_changeDone
+    SoundGroups.SoundGroups.playSound2D = SixthSenseDuration.new_playSound2D
     add = g_eventBus.addListener
     appEvent = events.AppLifeCycleEvent
     add(appEvent.INITIALIZING, SixthSenseDuration.onAppInitializing)

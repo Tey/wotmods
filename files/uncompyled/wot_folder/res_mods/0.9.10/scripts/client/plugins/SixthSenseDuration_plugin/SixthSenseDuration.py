@@ -1,16 +1,16 @@
 import SoundGroups
 import BigWorld
-import ResMgr
 import GUI
-from gui.Scaleform.Battle import Battle
+# Importing gui.Scaleform.Battle breaks the dynamic platoon feature, so we use BattleWindow instead
+from gui.Scaleform.windows import BattleWindow
 from gui.shared import g_eventBus, events
 from gui.app_loader.settings import APP_NAME_SPACE as _SPACE
-from debug_utils import LOG_ERROR, LOG_CURRENT_EXCEPTION, LOG_DEBUG, LOG_NOTE
+from debug_utils import LOG_DEBUG, LOG_NOTE
 from functools import partial
 from gui.shared.utils.HangarSpace import _HangarSpace
 from gui import GUI_SETTINGS
 import re
-from plugins.Engine.ModUtils import BattleUtils,MinimapUtils,FileUtils,HotKeysUtils,DecorateUtils
+from plugins.Engine.ModUtils import FileUtils,DecorateUtils
 import subprocess
 import threading
 from CurrentVehicle import g_currentVehicle
@@ -101,10 +101,15 @@ class SixthSenseDuration(Plugin):
         old_playSound2D(self, event)
 
     @staticmethod
-    def new_showSixthSenseIndicator(self, isShow):
-        if  SixthSenseDuration.myConf['DisplayOriginalIcon'] or not isShow:
-            old_showSixthSenseIndicatorFromSixthSenseDuration(self, isShow)
-            
+    def new_BattleWindow_call(self, methodName, args = None):
+        if methodName != 'sixthSenseIndicator.show':
+            old_BattleWindow_call(self, methodName, args)
+            return
+
+        isShow = args[0]
+        if SixthSenseDuration.myConf['DisplayOriginalIcon'] or not isShow:
+            old_BattleWindow_call(self, methodName, args)
+
         SixthSenseDuration.initGuiSpotted()
         SixthSenseDuration.initGuiUnspotted()
         SixthSenseDuration.guiSpotted.visible = isShow
@@ -293,18 +298,18 @@ class SixthSenseDuration(Plugin):
         cls.addEventHandler(SixthSenseDuration.myConf['reloadConfigKey'],cls.reloadConfig)
         saveOldFuncs()
         injectNewFuncs()
-        
+
 def saveOldFuncs():
-    global old_showSixthSenseIndicatorFromSixthSenseDuration,old_changeDoneFromSixthSenseDuration,old_playSound2D
-    DecorateUtils.ensureGlobalVarNotExist('old_showSixthSenseIndicatorFromSixthSenseDuration')
+    global old_BattleWindow_call,old_changeDoneFromSixthSenseDuration,old_playSound2D
+    DecorateUtils.ensureGlobalVarNotExist('old_BattleWindow_call')
     DecorateUtils.ensureGlobalVarNotExist('old_changeDoneFromSixthSenseDuration')
     DecorateUtils.ensureGlobalVarNotExist('old_playSound2D')
-    old_showSixthSenseIndicatorFromSixthSenseDuration = Battle._showSixthSenseIndicator
+    old_BattleWindow_call = BattleWindow.call
     old_changeDoneFromSixthSenseDuration = _HangarSpace._HangarSpace__changeDone
     old_playSound2D = SoundGroups.SoundGroups.playSound2D
     
 def injectNewFuncs():
-    Battle._showSixthSenseIndicator = SixthSenseDuration.new_showSixthSenseIndicator
+    BattleWindow.call = SixthSenseDuration.new_BattleWindow_call
     _HangarSpace._HangarSpace__changeDone = SixthSenseDuration.new_changeDone
     SoundGroups.SoundGroups.playSound2D = SixthSenseDuration.new_playSound2D
     add = g_eventBus.addListener

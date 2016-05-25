@@ -93,8 +93,8 @@ class SixthSenseDuration(Plugin):
     
     @staticmethod
     def new_playSound2D(self, event):
-        #LOG_DEBUG("playSound2D(%s)" % event)
-        if event == 'observed_by_enemy' or event == 'xvm_sixthSense':
+        # LOG_NOTE("playSound2D(%s)" % event)
+        if event == 'observed_by_enemy' or event == 'xvm_sixthSense' or event == 'lightbulb':
           LOG_NOTE("playSound2D: %s => BLOCKED" % (event))
           return
 
@@ -107,6 +107,7 @@ class SixthSenseDuration(Plugin):
             return
 
         isShow = args[0]
+        # LOG_NOTE("sixthSenseIndicator.show(%s)" % isShow)
         if SixthSenseDuration.myConf['DisplayOriginalIcon'] or not isShow:
             old_BattleWindow_call(self, methodName, args)
 

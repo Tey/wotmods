@@ -254,5 +254,7 @@
       * "%s":  9      -->
   <TimerText>Spotted for %s seconds</TimerText>
   <!-- ***************************************************** -->
+
+  <Debug>false</Debug>
   
 </config.xml>

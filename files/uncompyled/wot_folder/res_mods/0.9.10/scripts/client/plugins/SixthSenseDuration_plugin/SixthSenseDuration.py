@@ -1,11 +1,9 @@
 import SoundGroups
 import BigWorld
 import GUI
-# Importing gui.Scaleform.Battle breaks the dynamic platoon feature, so we use BattleWindow instead
-from gui.Scaleform.windows import BattleWindow
 from gui.shared import g_eventBus, events
 from gui.app_loader.settings import APP_NAME_SPACE as _SPACE
-from debug_utils import LOG_DEBUG, LOG_NOTE
+from debug_utils import LOG_NOTE
 from functools import partial
 from gui.shared.utils.HangarSpace import _HangarSpace
 from gui import GUI_SETTINGS
@@ -15,6 +13,15 @@ import subprocess
 import threading
 from CurrentVehicle import g_currentVehicle
 from plugins.Engine.Plugin import Plugin
+
+from gui.Scaleform.daapi.view.battle.shared.indicators import SixthSenseIndicator
+from gui.battle_control.battle_constants import VEHICLE_VIEW_STATE
+
+from account_helpers.settings_core.SettingsCore import g_settingsCore
+
+def LOG_DEBUG(msg):
+    if SixthSenseDuration.myConf['Debug']:
+        LOG_NOTE(msg)
 
 class SixthSenseDuration(Plugin):
     myConf = {
@@ -46,7 +53,8 @@ class SixthSenseDuration(Plugin):
               'IconSpottedSize': (52,52),
               'IconUnspottedSize': (52,52),
               'IconInactiveSize': (52,52),
-              'materialFX': 'ADD'
+              'materialFX': 'ADD',
+              'Debug': False,
     }
     guiCountDown = None
     backupVolume = None 
@@ -54,8 +62,7 @@ class SixthSenseDuration(Plugin):
     guiUnspotted = None
     guiInactive = None
     guiSpotted = None
-    
-    
+
     # --------------- audio ------------- #
     @staticmethod
     def playSound(sound,i):
@@ -93,7 +100,8 @@ class SixthSenseDuration(Plugin):
     
     @staticmethod
     def new_playSound2D(self, event):
-        # LOG_NOTE("playSound2D(%s)" % event)
+        LOG_DEBUG("playSound2D(%s)" % event)
+
         if event == 'observed_by_enemy' or event == 'xvm_sixthSense' or event == 'lightbulb':
           LOG_NOTE("playSound2D: %s => BLOCKED" % (event))
           return
@@ -101,15 +109,17 @@ class SixthSenseDuration(Plugin):
         old_playSound2D(self, event)
 
     @staticmethod
-    def new_BattleWindow_call(self, methodName, args = None):
-        if methodName != 'sixthSenseIndicator.show':
-            old_BattleWindow_call(self, methodName, args)
+    def new_SixthSenseIndicator___onVehicleStateUpdated(self, state, value):
+        LOG_DEBUG("SixthSenseIndicator.__onVehicleStateUpdated(%s, %s)" % (state, value))
+
+        if state != VEHICLE_VIEW_STATE.OBSERVED_BY_ENEMY:
+            old_SixthSenseIndicator___onVehicleStateUpdated(self, state, value)
             return
 
-        isShow = args[0]
-        # LOG_NOTE("sixthSenseIndicator.show(%s)" % isShow)
+        isShow = value
+        LOG_DEBUG("sixthSenseIndicator.show(%s)" % isShow)
         if SixthSenseDuration.myConf['DisplayOriginalIcon'] or not isShow:
-            old_BattleWindow_call(self, methodName, args)
+            old_SixthSenseIndicator___onVehicleStateUpdated(self, state, value)
 
         SixthSenseDuration.initGuiSpotted()
         SixthSenseDuration.initGuiUnspotted()
@@ -137,6 +147,8 @@ class SixthSenseDuration(Plugin):
     # --------------- icon ------------- #
     @staticmethod
     def onChangedVeh():
+        LOG_DEBUG('onChangedVeh()')
+
         if g_currentVehicle.item is None:
             return
         for c in g_currentVehicle.item.crew:
@@ -154,6 +166,8 @@ class SixthSenseDuration(Plugin):
     
     @staticmethod
     def new_changeDone(self):
+        LOG_DEBUG("_HangarSpace.__changeDone()")
+
         old_changeDoneFromSixthSenseDuration(self)
         GUI_SETTINGS._GuiSettings__settings['sixthSenseDuration'] = SixthSenseDuration.myConf['IconRange']
         SixthSenseDuration.onChangedVeh()
@@ -164,7 +178,6 @@ class SixthSenseDuration(Plugin):
     def initGuiCountDown():
         if SixthSenseDuration.guiCountDown is not None:
             return
-        SixthSenseDuration.fixPosition('TimerPosition')
         SixthSenseDuration.guiCountDown = GUI.Text('')
         GUI.addRoot(SixthSenseDuration.guiCountDown)
         SixthSenseDuration.guiCountDown.widthMode = 'PIXEL'
@@ -176,27 +189,24 @@ class SixthSenseDuration(Plugin):
         SixthSenseDuration.guiCountDown.colourFormatting = True
         SixthSenseDuration.guiCountDown.font = SixthSenseDuration.myConf['TimerFont']
         SixthSenseDuration.guiCountDown.visible = False
-        SixthSenseDuration.guiCountDown.position = SixthSenseDuration.myConf['TimerPosition']
+        SixthSenseDuration.guiCountDown.position = SixthSenseDuration.fixPosition('TimerPosition')
         
     @staticmethod
     def initGuiSpotted():
         if SixthSenseDuration.guiSpotted is None:
-            SixthSenseDuration.fixPosition('IconSpottedPosition')
-            SixthSenseDuration.guiSpotted = SixthSenseDuration.createTexture(SixthSenseDuration.myConf['IconSpottedPath'], SixthSenseDuration.myConf['IconSpottedPosition'],SixthSenseDuration.myConf['IconSpottedSize'])
+            SixthSenseDuration.guiSpotted = SixthSenseDuration.createTexture(SixthSenseDuration.myConf['IconSpottedPath'], SixthSenseDuration.fixPosition('IconSpottedPosition'),SixthSenseDuration.myConf['IconSpottedSize'])
         SixthSenseDuration.guiSpotted.visible = False
         
     @staticmethod
     def initGuiUnspotted():
         if SixthSenseDuration.guiUnspotted is None:
-            SixthSenseDuration.fixPosition('IconUnspottedPosition')
-            SixthSenseDuration.guiUnspotted = SixthSenseDuration.createTexture(SixthSenseDuration.myConf['IconUnspottedPath'], SixthSenseDuration.myConf['IconUnspottedPosition'],SixthSenseDuration.myConf['IconUnspottedSize'])
+            SixthSenseDuration.guiUnspotted = SixthSenseDuration.createTexture(SixthSenseDuration.myConf['IconUnspottedPath'], SixthSenseDuration.fixPosition('IconUnspottedPosition'),SixthSenseDuration.myConf['IconUnspottedSize'])
         SixthSenseDuration.guiUnspotted.visible = SixthSenseDuration.hasSixthSense    
             
     @staticmethod
     def initGuiInactive():
         if SixthSenseDuration.guiInactive is None:
-            SixthSenseDuration.fixPosition('IconInactivePosition')
-            SixthSenseDuration.guiInactive = SixthSenseDuration.createTexture(SixthSenseDuration.myConf['IconInactivePath'], SixthSenseDuration.myConf['IconInactivePosition'],SixthSenseDuration.myConf['IconInactiveSize'])
+            SixthSenseDuration.guiInactive = SixthSenseDuration.createTexture(SixthSenseDuration.myConf['IconInactivePath'], SixthSenseDuration.fixPosition('IconInactivePosition'),SixthSenseDuration.myConf['IconInactiveSize'])
         SixthSenseDuration.guiInactive.visible = not SixthSenseDuration.hasSixthSense
 
     @staticmethod
@@ -258,15 +268,20 @@ class SixthSenseDuration(Plugin):
     @staticmethod
     def fixPosition(type):
         x, y = GUI.screenResolution()
-        SixthSenseDuration.myConf[type] = eval(SixthSenseDuration.myConf[type])
+        return eval(SixthSenseDuration.myConf[type])
         
     @staticmethod
     def onAppInitializing(event):
+        LOG_DEBUG('onAppInitializing(%s)' % event.ns)
+
         if event.ns == _SPACE.SF_BATTLE:
             SixthSenseDuration.initGuiCountDown()
             SixthSenseDuration.initGuiInactive()
             SixthSenseDuration.initGuiSpotted()
             SixthSenseDuration.initGuiUnspotted()
+
+        # Not sure this is the correct way to monitor screen size changes, but it works...
+        g_settingsCore.interfaceScale.onScaleChanged += SixthSenseDuration.onScaleChanged
 
 #   @staticmethod
 #   def onAppInitialized(event):
@@ -274,12 +289,35 @@ class SixthSenseDuration(Plugin):
 
     @staticmethod
     def onAppDestroyed(event):
+        LOG_DEBUG('onAppDestroyed(%s)' % event.ns)
+
         if event.ns == _SPACE.SF_BATTLE:
             SixthSenseDuration.endGuiCountDown()
             SixthSenseDuration.endGuiInactive()
             SixthSenseDuration.endGuiSpotted()
             SixthSenseDuration.endGuiUnspotted()
-    
+
+        g_settingsCore.interfaceScale.onScaleChanged -= SixthSenseDuration.onScaleChanged
+
+    @staticmethod
+    def onScaleChanged(scale):
+        width, height = GUI.screenResolution()
+        LOG_DEBUG('onScaleChanged(%s) [%dx%d]' % (scale, width, height))
+
+        # Screen size has changed, update the position of icons
+
+        if SixthSenseDuration.guiCountDown is not None:
+            SixthSenseDuration.guiCountDown.position = SixthSenseDuration.fixPosition('TimerPosition')
+
+        if SixthSenseDuration.guiSpotted is not None:
+            SixthSenseDuration.guiSpotted.position = SixthSenseDuration.fixPosition('IconSpottedPosition')
+
+        if SixthSenseDuration.guiUnspotted is not None:
+            SixthSenseDuration.guiUnspotted.position = SixthSenseDuration.fixPosition('IconUnspottedPosition')
+
+        if SixthSenseDuration.guiInactive is not None:
+            SixthSenseDuration.guiInactive.position = SixthSenseDuration.fixPosition('IconInactivePosition')
+
     @classmethod
     def readConfig(cls):
         super(SixthSenseDuration, SixthSenseDuration).readConfig()
@@ -301,16 +339,16 @@ class SixthSenseDuration(Plugin):
         injectNewFuncs()
 
 def saveOldFuncs():
-    global old_BattleWindow_call,old_changeDoneFromSixthSenseDuration,old_playSound2D
-    DecorateUtils.ensureGlobalVarNotExist('old_BattleWindow_call')
+    global old_changeDoneFromSixthSenseDuration, old_playSound2D, old_SixthSenseIndicator___onVehicleStateUpdated
+    DecorateUtils.ensureGlobalVarNotExist('old_SixthSenseIndicator___onVehicleStateUpdated')
     DecorateUtils.ensureGlobalVarNotExist('old_changeDoneFromSixthSenseDuration')
     DecorateUtils.ensureGlobalVarNotExist('old_playSound2D')
-    old_BattleWindow_call = BattleWindow.call
+    old_SixthSenseIndicator___onVehicleStateUpdated = SixthSenseIndicator._SixthSenseIndicator__onVehicleStateUpdated
     old_changeDoneFromSixthSenseDuration = _HangarSpace._HangarSpace__changeDone
     old_playSound2D = SoundGroups.SoundGroups.playSound2D
     
 def injectNewFuncs():
-    BattleWindow.call = SixthSenseDuration.new_BattleWindow_call
+    SixthSenseIndicator._SixthSenseIndicator__onVehicleStateUpdated = SixthSenseDuration.new_SixthSenseIndicator___onVehicleStateUpdated
     _HangarSpace._HangarSpace__changeDone = SixthSenseDuration.new_changeDone
     SoundGroups.SoundGroups.playSound2D = SixthSenseDuration.new_playSound2D
     add = g_eventBus.addListener

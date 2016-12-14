@@ -17,7 +17,8 @@ from plugins.Engine.Plugin import Plugin
 from gui.Scaleform.daapi.view.battle.shared.indicators import SixthSenseIndicator
 from gui.battle_control.battle_constants import VEHICLE_VIEW_STATE
 
-from account_helpers.settings_core.SettingsCore import g_settingsCore
+from helpers import dependency
+from skeletons.account_helpers.settings_core import ISettingsCore
 
 def LOG_DEBUG(msg):
     if SixthSenseDuration.myConf['Debug']:
@@ -62,6 +63,8 @@ class SixthSenseDuration(Plugin):
     guiUnspotted = None
     guiInactive = None
     guiSpotted = None
+
+    settingsCore = dependency.descriptor(ISettingsCore) # MUST be a property
 
     # --------------- audio ------------- #
     @staticmethod
@@ -281,7 +284,7 @@ class SixthSenseDuration(Plugin):
             SixthSenseDuration.initGuiUnspotted()
 
         # Not sure this is the correct way to monitor screen size changes, but it works...
-        g_settingsCore.interfaceScale.onScaleChanged += SixthSenseDuration.onScaleChanged
+        SixthSenseDuration.settingsCore.interfaceScale.onScaleChanged += SixthSenseDuration.onScaleChanged
 
 #   @staticmethod
 #   def onAppInitialized(event):
@@ -297,7 +300,7 @@ class SixthSenseDuration(Plugin):
             SixthSenseDuration.endGuiSpotted()
             SixthSenseDuration.endGuiUnspotted()
 
-        g_settingsCore.interfaceScale.onScaleChanged -= SixthSenseDuration.onScaleChanged
+        SixthSenseDuration.settingsCore.interfaceScale.onScaleChanged -= SixthSenseDuration.onScaleChanged
 
     @staticmethod
     def onScaleChanged(scale):
